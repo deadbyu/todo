@@ -1,40 +1,31 @@
-# Punch List — Todo App
+# Punch List — A Todo List REST API
 
-A full-stack to-do list app built with **Spring Boot (Java, Gradle)** on the
-backend and **vanilla HTML/CSS/JavaScript** on the frontend. Built as a
-learning project to understand how a REST API, an ORM-backed database, and a
-plain JS frontend talk to each other — no frameworks, no shortcuts.
+#### Video Demo: <PASTE YOUR YOUTUBE URL HERE>
 
-## Stack
+#### Description:
 
-- **Backend:** Java 17, Spring Boot, Spring Web, Spring Data JPA
-- **Database:** H2 (in-memory, auto-configured)
-- **Frontend:** HTML, CSS, JavaScript (`fetch` API, no framework)
+Punch List is a backend REST API for a todo list application, built with Java and the Spring Boot framework. The name comes from the construction-industry term "punch list" — a list of small tasks that need to be completed before a project is considered finished, which felt like a fitting name for a task-tracking app. The goal of this project was to get hands-on experience with the core building blocks of a modern web backend: entities, repositories, controllers, and the way Spring Boot wires them together using dependency injection, without leaning on a tutorial's boilerplate to do the thinking for me.
 
-## Features
+At its current stage, the application exposes two HTTP endpoints under the `/api/todos` route. A `GET` request to `/api/todos` returns a JSON array of every todo item currently stored in the database. A `POST` request to the same route accepts a JSON body representing a new todo (at minimum, a `title` field) and saves it, returning the newly created object — including the database-generated `id` — back to the caller. These two endpoints are enough to demonstrate the full round trip of a Spring Boot application: receiving an HTTP request, mapping it to a Java object, persisting that object through a repository layer, and serializing the result back into JSON for the client.
 
-- Create, view, update, and delete to-do items
-- Mark tasks as complete/incomplete
-- REST API backing the UI, testable independently via HTTP requests
+**Project Structure and File Descriptions**
 
-## API Endpoints
+`TodoApplication.java` is the entry point of the program. It contains the `main` method that Spring Boot uses to bootstrap the entire application — auto-configuring the embedded server, scanning for components, and wiring the dependency injection container together. This file is intentionally minimal; Spring Boot's `@SpringBootApplication` annotation does the heavy lifting of configuration behind the scenes, which is one of the framework's biggest selling points and also, frankly, one of the trickiest things to understand as a beginner, since so much happens "by magic" rather than by explicit code.
 
-| Method | Endpoint          | Description         |
-|--------|-------------------|----------------------|
-| GET    | `/api/todos`      | List all todos       |
-| POST   | `/api/todos`      | Create a new todo     |
-| PUT    | `/api/todos/{id}` | Update a todo         |
-| DELETE | `/api/todos/{id}` | Delete a todo         |
+`entity/Todo.java` defines the `Todo` class, which represents a single todo item as it is stored in the database. It's annotated with `@Entity` and `@Table(name="Todo")`, which tells Spring's JPA (Java Persistence API) layer to map this class directly onto a database table. Each `Todo` has three fields: an auto-generated `id` (marked with `@Id` and `@GeneratedValue`, so the database handles numbering automatically rather than me having to track it manually), a `title` string describing the task, and a `completed` boolean flag for tracking whether the task is done. I included a no-argument constructor, which JPA requires internally to instantiate objects via reflection, alongside a convenience constructor that takes just a title, since that's the most common way a new todo gets created. Standard getters and setters round out the class so that other layers of the application (and the JSON serializer) can read and write these fields.
 
-## Running locally
+`repository/TodoRepository.java` is a Java interface that extends Spring Data's `JpaRepository<Todo, Long>`. This is one of the parts of the framework I found most impressive once I understood it: by simply extending this interface, I get a full set of CRUD (Create, Read, Update, Delete) database operations — `save()`, `findAll()`, `findById()`, `deleteById()`, and more — without writing a single line of SQL or implementation code. Spring generates the implementation automatically at runtime based on the generic type parameters (`Todo` as the entity, `Long` as its ID type). This let me focus on the application logic instead of on database plumbing.
 
-after running visit `http://localhost:8080`.
+`Controller/TodoController.java` is the layer that actually handles incoming HTTP requests. It's annotated with `@RestController`, which tells Spring to treat return values as JSON response bodies rather than view names, and `@RequestMapping("/api/todos")`, which sets the base route for every method inside the class. The controller holds a reference to a `TodoRepository`, injected automatically through the constructor — an example of dependency injection, where Spring creates and supplies the repository instance rather than the controller having to construct it manually. The `getAll()` method, mapped to `GET /api/todos`, simply calls `repository.findAll()` and returns the list. The `create()` method, mapped to `POST /api/todos`, accepts a `Todo` object deserialized from the request body (via `@RequestBody`) and passes it straight to `repository.save()`, which both inserts the new row and returns the saved object complete with its generated ID.
 
-## What I learned building this
+`Services/Service.java` is currently an empty placeholder package file. I created it anticipating a service layer to sit between the controller and repository — a common pattern in larger Spring applications used to hold business logic that shouldn't live directly in the controller. I haven't yet needed it for logic beyond simple pass-through calls, so it remains unused for now, but the structure is there for future expansion.
 
-- How Spring's dependency injection wires controllers, services, and
-  repositories together
-- How Spring Data JPA generates repository implementations at runtime via
-  reflection, without writing SQL
-- How `@RestController` and `@RequestBody` handle JSON serialization
-- How a frontend talks to a backend purely over HTTP, with no shared code
+`application.properties` currently only sets the application's name; Spring Boot's auto-configuration handles the rest, including defaulting to an in-memory H2 database when no other datasource is configured, which is sufficient for local development and testing.
+
+**Design Decisions**
+
+I debated whether to build this project with a lightweight framework like Flask, given that's closer to what CS50 teaches directly, or to challenge myself with Spring Boot, which is heavier and more commonly used in industry Java backends. I chose Spring Boot specifically because it forced me to learn concepts — dependency injection, annotation-driven configuration, and the repository pattern — that don't come up in CS50's own curriculum, which felt like a better use of a final project than replicating a pattern I'd already seen in problem sets.
+
+**Current Limitations and Future Work**
+
+As it stands, the project supports creating and listing todos but does not yet support updating a todo's `completed` status or deleting a todo — both would be natural additions using `@PutMapping` and `@DeleteMapping` methods that call the repository's existing `save()` and `deleteById()` methods respectively. There is also no frontend yet; the API is currently tested via tools like Postman or curl rather than through a browser interface. A minimal HTML/CSS/JavaScript frontend that calls these endpoints with `fetch()` would be the next logical step to turn this from an API into a complete, usable application.
